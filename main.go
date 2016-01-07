@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -30,11 +31,33 @@ func main() {
 
 		for _, match := range matches {
 			match = strings.Replace(match, "\\/", "/", -1)
-			fmt.Println("fetching:", match)
+			splitted := strings.Split(match, "/")
+			fname := splitted[len(splitted)-1]
+			fmt.Println("fetching:", fname)
+
+			fetchToFile(match, fname)
 		}
 	}
 }
 
 func fetchToFile(url, fname string) {
-	// yet to be implemented
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+		os.Exit(1)
+	}
+	fd, err := os.Create(fname)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+		os.Exit(1)
+	}
+	defer fd.Close()
+	defer resp.Body.Close()
+
+	_, err = io.Copy(fd, resp.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+		os.Exit(1)
+	}
+	fmt.Println("Written:", fname)
 }
