@@ -9,9 +9,11 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func main() {
+	ch := make(chan string)
 	url := "http://instagram.com/"
 	for _, profile := range os.Args[1:] {
 		resp, err := http.Get(url + profile)
@@ -35,12 +37,21 @@ func main() {
 			fname := splitted[len(splitted)-1]
 			fmt.Println("fetching:", fname)
 
-			fetchToFile(match, fname)
+			go fetchToFile(match, fname, ch)
+		}
+	}
+	for {
+		select {
+		case file := <-ch:
+			fmt.Println("Written:", file)
+		case <-time.After(time.Second * 4):
+			fmt.Println("Downloaded all files")
+			os.Exit(0)
 		}
 	}
 }
 
-func fetchToFile(url, fname string) {
+func fetchToFile(url, fname string, ch chan<- string) {
 	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
@@ -59,5 +70,6 @@ func fetchToFile(url, fname string) {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
 		os.Exit(1)
 	}
-	fmt.Println("Written:", fname)
+	// file is written, announce this to main
+	ch <- fname
 }
